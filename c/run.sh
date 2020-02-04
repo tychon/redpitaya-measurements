@@ -1,10 +1,15 @@
 #/bin/bash
-set -x
 
-if [ "$#" -ne 2 ]; then
-    echo "Arguments: IP of redpitaya and executable name"
+if [ "$#" -lt 2 ]; then
+    echo "Arguments: REDPITAYA_IP EXECUTABLE_NAME [optional arguments]"
     exit 1
 fi
+
+RPIP="$1"
+EXECNAME="$2"
+# Now remove first two arguments from argument list,
+# such that later "$@" are only the remaining arguments.
+shift 2
 
 
 # Red Pitaya has default passwort 'root' for user root.
@@ -14,21 +19,25 @@ fi
 
 # Load correct FPGA image for C API.
 if [[ "$2" == "init" ]]; then
-    sshpass -p 'root' ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@$1" 'cat /opt/redpitaya/fpga/fpga_0.94.bit > /dev/xdevcfg'
+    set -x
+    sshpass -p 'root' ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@$RPIP" 'cat /opt/redpitaya/fpga/fpga_0.94.bit > /dev/xdevcfg'
     exit
 fi
 
+# Show commands
+set -x
+
 # Upload directory to Red Pitaya
-sshpass -p 'root' scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r . "root@$1:/root/measurements"
+sshpass -p 'root' scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r . "root@$RPIP:/root/measurements"
 
 # Compile and run
-sshpass -p 'root' ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@$1" 'BASH_ENV=/etc/profile exec bash' <<EOF
+sshpass -p 'root' ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@$RPIP" 'BASH_ENV=/etc/profile exec bash' <<EOF
   set -x
   hostname
   cd measurements/
-  make -B "$2" || exit
-  LD_LIBRARY_PATH=/opt/redpitaya/lib "./$2" > output.txt
+  make -B "$EXECNAME" || exit
+  LD_LIBRARY_PATH=/opt/redpitaya/lib "./$EXECNAME" "$@" > output.txt
 EOF
 
 # Download output data
-sshpass -p 'root' scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@$1:/root/measurements/output.txt" .
+sshpass -p 'root' scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@$RPIP:/root/measurements/output.txt" .

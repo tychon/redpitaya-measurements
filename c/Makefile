@@ -7,13 +7,16 @@ CFLAGS += -I/opt/redpitaya/include
 LDFLAGS = -L/opt/redpitaya/lib
 LDLIBS = -lm -lpthread -lrp
 
-SRCS=$(wildcard *.c)
-OBJS=$(SRCS:.c=)
+OBJS=demodulation.o
+EXECS=avoided_coupling_2channels.x
 
-all: $(OBJS)
+all: $(EXECS)
+
+%.x: %.o $(OBJS)
+	$(CC) -o $@ $(LDFLAGS) $^ $(LDLIBS)
 
 %.o: %.c
-	$(CC) -c $(CFLAGS) $< -o $@
+	$(CC) -o $@ -c $(CFLAGS) $<
 
 clean:
 	$(RM) *.o

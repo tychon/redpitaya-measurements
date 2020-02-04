@@ -9,7 +9,11 @@ Before running code use
 
     bash run.sh IPADDR init
 
-to load FPGA image for C API.
+to load FPGA image for C API.  Then you can run for example
+
+    bash run.sh IPADDR avoided_coupling_2channels.x
+
+The output to `stdout` will be downloaded to `output.txt`.
 
 [Following the documentation.](https://redpitaya.readthedocs.io/en/latest/developerGuide/comC.html)
 
