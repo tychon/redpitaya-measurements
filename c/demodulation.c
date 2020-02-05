@@ -52,6 +52,7 @@ float integrate_modulated_trapezoidal(
     }
 }
 
+
 void demodulate(
         const float *signal, const size_t n,
         const float f, const float samplerate,
@@ -64,4 +65,16 @@ void demodulate(
         signal, nsamples, 1.0, f/samplerate, -M_PI/2.0);
     *A = sqrt(I*I + Q*Q) * 2.0 / nsamples;
     *phi = atan2(-Q, I);
+}
+
+
+float deviation_from_reconstruction(
+        const float *signal, const size_t n, const float samplerate,
+        const float freq, const float amplitude, const float phase) {
+    float d, s = 0;
+    for (size_t i = 0; i < n; i++) {
+        d = signal[i] - amplitude * cos(2*M_PI * freq * i / samplerate + phase);
+        s += d*d;
+    }
+    return sqrt(s / n);
 }

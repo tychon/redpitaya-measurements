@@ -27,4 +27,19 @@ void demodulate(
     float *A, float *phi);
 
 
+/**
+ * Calculate standard deviation of reconstruction from signal.
+ *
+ * @param signal Array with input signal.
+ * @param n Number of samples.
+ * @param samplerate Samplerate of signal [samples / s].
+ * @param freq Frequency [Hz].
+ * @param amplitude Amplitude of reconstructed signal.
+ * @param phase Phase of reconstructed signal in rad.
+ */
+float deviation_from_reconstruction(
+    const float *signal, const size_t n, const float samplerate,
+    const float freq, const float amplitude, const float phase);
+
+
 #endif // __DEMODULATION_H

@@ -87,12 +87,15 @@ int main(int argc, char **argv){
         printf("%f\t%f\n", buf1[i], buf2[i]);
     }
 
-    // Demodulate and print A and phi to stderr
-    float A, phi;
-    demodulate(buf1, bufsize1, freq, 125000000/8, &A, &phi);
-    fprintf(stderr, "1: A = %f V,  phase = %f rad\n", A, phi);
-    demodulate(buf2, bufsize2, freq, 125000000/8, &A, &phi);
-    fprintf(stderr, "2: A = %f V,  phase = %f rad\n", A, phi);
+    // Demodulate and print A and phase to stderr
+    float A, phase, sd;
+    demodulate(buf1, bufsize1, freq, 125000000/8, &A, &phase);
+    sd = deviation_from_reconstruction(buf1, bufsize1, 125000000/8, freq, A, phase);
+    fprintf(stderr, "1: A = %f V,  phase = %f rad, sd = %.2e (%.2f%%)\n", A, phase, sd, 100*sd/A);
+
+    demodulate(buf2, bufsize2, freq, 125000000/8, &A, &phase);
+    sd = deviation_from_reconstruction(buf2, bufsize2, 125000000/8, freq, A, phase);
+    fprintf(stderr, "2: A = %f V,  phase = %f rad, sd = %.2e (%.2f%%)\n", A, phase, sd, 100*sd/A);
 
     free(buf1);
     free(buf2);
