@@ -18,7 +18,7 @@ shift 2
 
 
 # Load correct FPGA image for C API.
-if [[ "$2" == "init" ]]; then
+if [[ "$EXECNAME" == "init" ]]; then
     set -x
     sshpass -p 'root' ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@$RPIP" 'cat /opt/redpitaya/fpga/fpga_0.94.bit > /dev/xdevcfg'
     exit
