@@ -1,4 +1,5 @@
 #/bin/bash
+set -e
 
 if [ "$#" -lt 2 ]; then
     echo "Arguments: REDPITAYA_IP EXECUTABLE_NAME [optional arguments]"
@@ -30,14 +31,13 @@ set -x
 # Upload directory to Red Pitaya
 sshpass -p 'root' scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r . "root@$RPIP:/root/measurements"
 
-# Compile and run
+# Compile
 sshpass -p 'root' ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@$RPIP" 'BASH_ENV=/etc/profile exec bash' <<EOF
-  set -x
+  set -xe
   hostname
   cd measurements/
-  make -B "$EXECNAME" || exit
-  LD_LIBRARY_PATH=/opt/redpitaya/lib "./$EXECNAME" "$@" > output.txt
+  make -B "$EXECNAME"
 EOF
 
-# Download output data
-sshpass -p 'root' scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@$RPIP:/root/measurements/output.txt" .
+# Run and store output to stdout in compressed file
+sshpass -p 'root' ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@$RPIP" "LD_LIBRARY_PATH=/opt/redpitaya/lib measurements/$EXECNAME $@" | gzip -9 > ../output.gz
