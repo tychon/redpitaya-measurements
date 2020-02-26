@@ -1,7 +1,16 @@
 
+#include <stdlib.h>
 #include <math.h>
 
 #include "demodulation.h"
+
+
+float mean(const float *buf, const size_t n) {
+    float m = 0;
+    for (size_t i = 0; i < n; i++)
+        m += buf[i];
+    return m / n;
+}
 
 
 /**
@@ -56,24 +65,30 @@ float integrate_modulated_trapezoidal(
 void demodulate(
         const float *signal, const size_t n,
         const float f, const float samplerate,
-        float *A, float *phi) {
+        float *A, float *phi, float *offset) {
     // truncate to complete periods
     uint32_t nsamples = floor((float)n * f / samplerate) * samplerate / f;
+    float dc = *offset = mean(signal, nsamples);
+
+    float *tmpsignal = (float *)malloc(nsamples * sizeof(float));
+    for (uint32_t i = 0; i < nsamples; i++)
+        tmpsignal[i] = signal[i] - dc;
+
     float I = integrate_modulated_trapezoidal(
-        signal, nsamples, 1.0, f/samplerate, 0.0);
+        tmpsignal, nsamples, 1.0, f/samplerate, 0.0);
     float Q = integrate_modulated_trapezoidal(
-        signal, nsamples, 1.0, f/samplerate, -M_PI/2.0);
+        tmpsignal, nsamples, 1.0, f/samplerate, -M_PI/2.0);
     *A = sqrt(I*I + Q*Q) * 2.0 / nsamples;
     *phi = atan2(-Q, I);
 }
 
 
 float deviation_from_reconstruction(
-        const float *signal, const size_t n, const float samplerate,
-        const float freq, const float amplitude, const float phase) {
+        const float *signal, const size_t n, const float samplerate, const float freq,
+        const float amplitude, const float phase, const float offset) {
     float d, s = 0;
     for (size_t i = 0; i < n; i++) {
-        d = signal[i] - amplitude * cos(2*M_PI * freq * i / samplerate + phase);
+        d = signal[i] - offset - amplitude * cos(2*M_PI * freq * i / samplerate + phase);
         s += d*d;
     }
     return sqrt(s / n);
