@@ -49,15 +49,21 @@ int main(int argc, char **argv){
     rp_AcqSetTriggerDelay(8192);
     rp_AcqSetAveraging(1);
 
+    float samplerate;
+    rp_AcqGetSamplingRateHz(&samplerate);
+
     rp_AcqStart(); // start acquiring
     rp_GenOutEnable(RP_CH_1);
     rp_GenOutEnable(RP_CH_2);
 
     // time frame of one buffer in us
     const uint32_t maxbufsize = 16384;
-    uint32_t buffertime = maxbufsize * 8 / 125;
-    // wait for "look ahead" buffer to fill up
+    uint32_t buffertime = maxbufsize * 1e6 / samplerate;
+    // Wait for "look ahead" buffer to fill up
     usleep(buffertime);
+    // and wait for output to settle with high-capacitance high pass
+    // RC filter.
+    usleep(1e4); // 10ms
 
     // trigger and wait for full buffer
     rp_AcqSetTriggerSrc(RP_TRIG_SRC_NOW);
@@ -87,15 +93,21 @@ int main(int argc, char **argv){
         printf("%f\t%f\n", buf1[i], buf2[i]);
     }
 
-    // Demodulate and print A and phase to stderr
-    float A, phase, sd;
-    demodulate(buf1, bufsize1, freq, 125000000/8, &A, &phase);
-    sd = deviation_from_reconstruction(buf1, bufsize1, 125000000/8, freq, A, phase);
-    fprintf(stderr, "1: A = %f V,  phase = %f rad, sd = %.2e (%.2f%%)\n", A, phase, sd, 100*sd/A);
+    // Demodulate and print info to stderr
+    float A, phase, offset, sd;
+    demodulate(buf1, bufsize1, freq, samplerate, &A, &phase, &offset);
+    sd = deviation_from_reconstruction(buf1, bufsize1, samplerate, freq, A, phase, offset);
+    fprintf(stderr, "1: A = %f V,  phase = %f rad,  offset = %f V,  sd = %.2e (%.2f%%)\n", A, phase, offset, sd, 100*sd/A);
 
-    demodulate(buf2, bufsize2, freq, 125000000/8, &A, &phase);
-    sd = deviation_from_reconstruction(buf2, bufsize2, 125000000/8, freq, A, phase);
-    fprintf(stderr, "2: A = %f V,  phase = %f rad, sd = %.2e (%.2f%%)\n", A, phase, sd, 100*sd/A);
+    demodulate(buf2, bufsize2, freq, samplerate, &A, &phase, &offset);
+    sd = deviation_from_reconstruction(buf2, bufsize2, samplerate, freq, A, phase, offset);
+    fprintf(stderr, "2: A = %f V,  phase = %f rad,  offset = %f V,  sd = %.2e (%.2f%%)  @ f = %.1e Hz\n",
+            A, phase, offset, sd, 100*sd/A, freq);
+
+    demodulate(buf2, bufsize2, 2*freq, samplerate, &A, &phase, &offset);
+    sd = deviation_from_reconstruction(buf2, bufsize2, samplerate, 2*freq, A, phase, offset);
+    fprintf(stderr, "2: A = %f V,  phase = %f rad,  offset = %f V,  sd = %.2e (%.2f%%)  @ 2f = %.1e Hz\n",
+            A, phase, offset, sd, 100*sd/A, 2*freq);
 
     free(buf1);
     free(buf2);
