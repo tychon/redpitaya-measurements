@@ -2,12 +2,12 @@
 # Run this Makefile on Red Pitaya!
 # Use run.sh to upload, compile and execute.
 
-CFLAGS  = -g -std=gnu99 -Wall
+CFLAGS  = -g -std=gnu99 -Wall -Werror
 CFLAGS += -I/opt/redpitaya/include
 LDFLAGS = -L/opt/redpitaya/lib
 LDLIBS = -lm -lpthread -lrp
 
-OBJS=demodulation.o
+OBJS=demodulation.o utility.o
 EXECS=avoided_coupling_2channels.x
 
 all: $(EXECS)
