@@ -26,8 +26,9 @@ int main(int argc, char **argv){
     rp_AcqSetGain(RP_CH_2, RP_LOW);
     rp_AcqSetDecimation(RP_DEC_8);
     rp_AcqSetTriggerSrc(RP_TRIG_SRC_CHA_PE);
-    rp_AcqSetTriggerLevel(RP_CH_1, 0.5);
+    rp_AcqSetTriggerLevel(RP_CH_1, 0.1);
     //rp_AcqSetTriggerDelay(8192);
+    rp_AcqSetTriggerDelay(7900);
     rp_AcqSetAveraging(1);
     rp_AcqStart();
 
