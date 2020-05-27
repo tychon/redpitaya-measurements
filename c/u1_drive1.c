@@ -1,6 +1,10 @@
 /**
- * Drive output at one frequency given on command line, optionally
- * trigger GPIO initializer and record waveform at ADC.
+ * On trigger drive output CH1 at given frequency and phase.
+ * Trigger signal generated on DIO0_N (negative edge).
+ * DIO0_P (RP external trigger) and initializer of circuit
+ * should be connected to this trigger.
+ *
+ * Usage: ./run.sh IP u1_drive.x FREQ AMPLITUDE PHASE
  */
 
 #include <stdio.h>
@@ -15,17 +19,14 @@
 #include "utility.h"
 
 
-// Additional settling time for output in microseconds
-#define OUTPUT_SETTLING_TIME 10e3
-
-
 int main(int argc, char **argv) {
     // Parse arguments
-    if (argc < 2 || argc > 3) {
+    if (argc != 4) {
         exit(1);
     }
     float fout = atof(argv[1]);
-    bool gpio_trig = argc == 3;
+    float amp = atof(argv[2]);
+    float phase = atof(argv[3]);
 
     // Initialize IO.
     if (rp_Init() != RP_OK) {
@@ -33,39 +34,39 @@ int main(int argc, char **argv) {
         exit(2);
     }
 
-    if (gpio_trig) { // Prepare trigger
-      rp_DpinSetDirection(RP_DIO0_P, RP_IN);
-      rp_DpinSetDirection(RP_DIO0_N, RP_OUT);
-      rp_DpinSetState(RP_DIO0_N, RP_HIGH);
-    }
+    // Prepare trigger
+    rp_DpinSetDirection(RP_DIO0_P, RP_IN);
+    rp_DpinSetDirection(RP_DIO0_N, RP_OUT);
+    rp_DpinSetState(RP_DIO0_N, RP_HIGH);
 
     // Initialize outputs
     rp_GenReset();
+    rp_GenTriggerSource(RP_CH_1, RP_GEN_TRIG_SRC_EXT_NE);
     rp_GenFreq(RP_CH_1, fout);
-    rp_GenAmp(RP_CH_1, 0.8);
+    rp_GenAmp(RP_CH_1, amp);
     rp_GenOffset(RP_CH_1, 0);
     rp_GenWaveform(RP_CH_1, RP_WAVEFORM_SINE);
-    rp_GenMode(RP_CH_1, RP_GEN_MODE_CONTINUOUS);
+    rp_GenPhase(RP_CH_1, phase);
+    rp_GenMode(RP_CH_1, RP_GEN_MODE_BURST);
+    rp_GenBurstCount(RP_CH_1, -1); // -1: continuous
 
     // Setup both ADC channels
     rp_AcqReset();
-    rp_AcqSetGain(RP_CH_1, RP_LOW);
-    rp_AcqSetGain(RP_CH_2, RP_LOW);
-    rp_AcqSetDecimation(RP_DEC_8);
+    rp_AcqSetGain(RP_CH_1, RP_HIGH);
+    rp_AcqSetGain(RP_CH_2, RP_HIGH);
+    rp_AcqSetDecimation(RP_DEC_1);
     rp_AcqSetTriggerSrc(RP_TRIG_SRC_EXT_NE);
     rp_AcqSetTriggerDelay(7992); // max 8192
     rp_AcqSetAveraging(1);
     rp_AcqStart();
 
-    rp_GenOutEnable(RP_CH_1);
-    usleep(OUTPUT_SETTLING_TIME);
-
     // wait for "look ahead" buffer to fill up
     uint32_t buffertime = RP_BUFFER_SIZE * 8 / 125; // us
     usleep(buffertime);
 
-    // trigger
-    if (gpio_trig) rp_DpinSetState(RP_DIO0_N, RP_LOW);
+    // fire trigger
+    rp_GenOutEnable(RP_CH_1);
+    rp_DpinSetState(RP_DIO0_N, RP_LOW);
     // wait until acquisition trigger fired
     // (they do not have to be connected).
     rp_acq_trig_state_t state = RP_TRIG_STATE_TRIGGERED;
