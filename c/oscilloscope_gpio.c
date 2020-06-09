@@ -26,6 +26,8 @@
 
 #include "redpitaya/rp.h"
 
+#include "utility.h"
+
 
 #define RP_GEN_SAMPLERATE 125e6
 
@@ -63,10 +65,7 @@ int main(int argc, char **argv){
     // Prepare CH2 trigger using arbitrary waveform
     if (ttlCH2_delay >= 0) {
         float *trigwaveform = (float *)malloc(ADC_BUFFER_SIZE * sizeof(float));
-        trigwaveform[0] = 1;
-        for (uint32_t i = 1; i < ADC_BUFFER_SIZE; i++) {
-            trigwaveform[i] = (i/RP_GEN_SAMPLERATE < ttlCH2_delay) ? 1 : 0;
-        }
+        ttl_arb_waveform(RP_GEN_SAMPLERATE, ttlCH2_delay, trigwaveform, ADC_BUFFER_SIZE);
         rp_GenReset();
         rp_GenTriggerSource(RP_CH_2, RP_GEN_TRIG_SRC_EXT_NE);
         rp_GenWaveform(RP_CH_2, RP_WAVEFORM_ARBITRARY);
@@ -97,6 +96,8 @@ int main(int argc, char **argv){
         }
     }
     if (ttlCH2_delay >= 0) {
+        // Wait for delayed CH2 trigger
+        usleep(ttlCH2_delay * 1e6);
         // Prevent CH2 trigger from returning to high
         rp_GenOutDisable(RP_CH_2);
     }
