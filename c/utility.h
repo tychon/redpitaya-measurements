@@ -34,4 +34,12 @@ void acquire_2channels(
         float *buf1, uint32_t *s1,
         float *buf2, uint32_t *s2);
 
+/**
+ * Write step function to buffer: 1 before delay time, 0 after.
+ * First sample guaranteed to be 1.
+ */
+void ttl_arb_waveform(
+    float samplerate, float delay,
+    float *buf, uint32_t bufsize);
+
 #endif // __UTILITY_H

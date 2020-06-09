@@ -75,3 +75,12 @@ void acquire_2channels(
     rp_AcqGetOldestDataV(RP_CH_1, s1, buf1);
     rp_AcqGetOldestDataV(RP_CH_2, s2, buf2);
 }
+
+
+void ttl_arb_waveform(float samplerate, float delay, float *buf, uint32_t bufsize) {
+    if (bufsize == 0) return;
+    buf[0] = 1;
+    for (uint32_t i = 1; i < bufsize; i++) {
+        buf[i] = (i/samplerate < delay) ? 1 : 0;
+    }
+}
