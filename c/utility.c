@@ -1,12 +1,24 @@
 
+#include <stdlib.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include <math.h>
 
 #include "utility.h"
 
 
-float log_scale_steps(int i, int imax, float vmin, float vmax) {
-    return exp(log(vmin) + i * log(vmax/vmin) / (imax-1));
+float log_scale_steps(int i, int npoints, float vmin, float vmax) {
+    if (npoints == 1) {
+        return vmin;
+    }
+    return exp(log(vmin) + i * log(vmax/vmin) / (npoints-1));
+}
+
+float lin_scale_steps(int i, int npoints, float vmin, float vmax) {
+    if (npoints == 1) {
+        return vmin;
+    }
+    return vmin + i * (vmax - vmin) / (npoints - 1);
 }
 
 
@@ -83,4 +95,21 @@ void ttl_arb_waveform(float samplerate, float delay, float *buf, uint32_t bufsiz
     for (uint32_t i = 1; i < bufsize; i++) {
         buf[i] = (i/samplerate < delay) ? 1 : 0;
     }
+}
+
+
+bool parse_cmd_line_range(const char *arg, float *start, float *end, int *npoints) {
+    char *part2, *part3, *part4;
+    *start = strtof(arg, &part2);
+    if (*part2 == '\0') {
+        *end = *start;
+        *npoints = 1;
+        return true;
+    }
+    if (*part2 != ',') return false;
+    *npoints = strtol(part2+1, &part3, 10);
+    if (*part3 != ',') return false;
+    *end = strtof(part3+1, &part4);
+    if (*part4 != '\0') return false;
+    return true;
 }

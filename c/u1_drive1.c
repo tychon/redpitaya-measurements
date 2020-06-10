@@ -14,8 +14,14 @@
  *
  * Usage: u1_drive1 FREQ AMPLITUDE PHASE [CH2DELAY]
  *
- * Prints to stdout the ADC buffers, trigger position at sample 200.
- * Formatted tab-separated two columns, i.e. one for each channel.
+ * You may give ranges for any of the arguments by using
+ * START,NPOINTS,END for e.g. FREQ.
+ *
+ * Output data format (tab separated) to stdout:
+ *
+ *     SAMPLERATE FREQ AMP PHASE CH2DELAY CH SAMPLES...
+ *
+ * Trigger position at sample 200
  *
  * Note: Default setting of digital IO pins is OUT, LOW.
  */
@@ -37,16 +43,24 @@
 
 int main(int argc, char **argv) {
     // Parse arguments
-    float fout, amp, phase;
-    float ttlCH2_delay = -1;
+    float f_start, f_end, amp_start, amp_end, phase_start, phase_end,
+        ttlCH2_start = 0, ttlCH2_end = 0;
+    int f_npoints, amp_npoints, phase_npoints, ttlCH2_npoints = 1;
+    bool ttlCH2 = false;
     if (argc >= 4) {
-        fout = atof(argv[1]);
-        amp = atof(argv[2]);
-        phase = atof(argv[3]);
+        if (!parse_cmd_line_range(argv[1], &f_start, &f_end, &f_npoints)
+            || !parse_cmd_line_range(argv[2], &amp_start, &amp_end, &amp_npoints)
+            || !parse_cmd_line_range(argv[3], &phase_start, &phase_end, &phase_npoints)) {
+            fprintf(stderr, "Invalid argument.\n");
+            exit(1);
+        }
     }
     if (argc == 5) {
-        ttlCH2_delay = atof(argv[4]);
-        fprintf(stderr, "CH2 delay %f\n", ttlCH2_delay);
+        ttlCH2 = true;
+        if (!parse_cmd_line_range(argv[4], &ttlCH2_start, &ttlCH2_end, &ttlCH2_npoints)) {
+            fprintf(stderr, "Invalid argument.\n");
+            exit(1);
+        }
     }
     if (argc < 4 || argc > 5) {
         fprintf(stderr, "Invalid arguments.\n");
@@ -62,89 +76,116 @@ int main(int argc, char **argv) {
     // Prepare trigger
     rp_DpinSetDirection(RP_DIO0_P, RP_IN);
     rp_DpinSetDirection(RP_DIO0_N, RP_OUT);
-    rp_DpinSetState(RP_DIO0_N, RP_HIGH);
 
-    // Initialize driving outputs
-    rp_GenReset();
-    rp_GenTriggerSource(RP_CH_1, RP_GEN_TRIG_SRC_EXT_NE);
-    rp_GenWaveform(RP_CH_1, RP_WAVEFORM_SINE);
-    rp_GenFreq(RP_CH_1, fout);
-    rp_GenAmp(RP_CH_1, amp);
-    rp_GenOffset(RP_CH_1, 0);
-    rp_GenPhase(RP_CH_1, phase);
-    rp_GenMode(RP_CH_1, RP_GEN_MODE_BURST);
-    rp_GenBurstCount(RP_CH_1, -1); // -1: continuous
+    float *trigwaveform = (float *)malloc(ADC_BUFFER_SIZE * sizeof(float));
 
-    // Initialize TTL line output
-    if (ttlCH2_delay >= 0) {
-        float *trigwaveform = (float *)malloc(ADC_BUFFER_SIZE * sizeof(float));
-        ttl_arb_waveform(RP_GEN_SAMPLERATE, ttlCH2_delay, trigwaveform, ADC_BUFFER_SIZE);
-        rp_GenTriggerSource(RP_CH_2, RP_GEN_TRIG_SRC_EXT_NE);
-        rp_GenWaveform(RP_CH_2, RP_WAVEFORM_ARBITRARY);
-        rp_GenArbWaveform(RP_CH_2, trigwaveform, ADC_BUFFER_SIZE);
-        rp_GenFreq(RP_CH_2, RP_GEN_SAMPLERATE/ADC_BUFFER_SIZE);
-        rp_GenAmp(RP_CH_2, 1);
-        rp_GenMode(RP_CH_2, RP_GEN_MODE_BURST);
-        rp_GenBurstCount(RP_CH_2, 1);
-        // Enable output (first sample always high) before `usleep`
-        // to let ringing dissipate.
-        rp_GenOutEnable(RP_CH_2);
-        free(trigwaveform);
-    }
+    uint32_t bufsize = ADC_BUFFER_SIZE;
+    float *buf = (float *)malloc(ADC_BUFFER_SIZE * sizeof(float));
 
-    // Setup both ADC channels
-    rp_AcqReset();
-    rp_AcqSetGain(RP_CH_1, RP_HIGH);
-    rp_AcqSetGain(RP_CH_2, RP_HIGH);
-    rp_AcqSetDecimation(RP_DEC_8);
-    rp_AcqSetTriggerSrc(RP_TRIG_SRC_EXT_NE);
-    rp_AcqSetTriggerDelay(7992); // trigger at sample 200
-    rp_AcqSetAveraging(1);
-    rp_AcqStart();
+    int itotal = 0;
+    for (int f_i = 0; f_i < f_npoints; f_i++) {
+        float f = lin_scale_steps(f_i, f_npoints, f_start, f_end);
+        for (int amp_i = 0; amp_i < amp_npoints; amp_i++) {
+            float amp = lin_scale_steps(amp_i, amp_npoints, amp_start, amp_end);
+            for (int phase_i = 0; phase_i < phase_npoints; phase_i++) {
+                float phase = lin_scale_steps(phase_i, phase_npoints, phase_start, phase_end);
+                for (int ttlCH2_i = 0; ttlCH2_i < ttlCH2_npoints; ttlCH2_i++) {
+                    float ttlCH2_delay = lin_scale_steps(
+                        ttlCH2_i, ttlCH2_npoints, ttlCH2_start, ttlCH2_end);
 
-    // Wait for "look ahead" buffer to fill up
-    uint32_t buffertime = ADC_BUFFER_SIZE * 8 / 125; // us
-    usleep(buffertime);
+                    fprintf(stderr, "%3.0f%% %.2fkHz %.3fV %.1f° %.2fus\n",
+                            100.0*itotal/(f_npoints*amp_npoints*phase_npoints*ttlCH2_npoints-1),
+                            f/1e3, amp, phase, ttlCH2_delay*1e6);
 
-    // Fire trigger
-    rp_GenOutEnable(RP_CH_1);
-    rp_DpinSetState(RP_DIO0_N, RP_LOW);
-    // Wait until acquisition trigger fired
-    rp_acq_trig_state_t state = RP_TRIG_STATE_TRIGGERED;
-    while (1) {
-        rp_AcqGetTriggerState(&state);
-        if(state == RP_TRIG_STATE_TRIGGERED){
-            break;
+                    rp_DpinSetState(RP_DIO0_N, RP_HIGH);
+
+                    // Initialize driving outputs
+                    rp_GenReset();
+                    rp_GenTriggerSource(RP_CH_1, RP_GEN_TRIG_SRC_EXT_NE);
+                    rp_GenWaveform(RP_CH_1, RP_WAVEFORM_SINE);
+                    rp_GenFreq(RP_CH_1, f);
+                    rp_GenAmp(RP_CH_1, amp);
+                    rp_GenPhase(RP_CH_1, phase);
+                    rp_GenOffset(RP_CH_1, 0);
+                    rp_GenMode(RP_CH_1, RP_GEN_MODE_BURST);
+                    rp_GenBurstCount(RP_CH_1, -1); // -1: continuous
+
+                    // Initialize TTL line output
+                    if (ttlCH2 >= 0) {
+                        ttl_arb_waveform(RP_GEN_SAMPLERATE, ttlCH2_delay, trigwaveform, ADC_BUFFER_SIZE);
+                        rp_GenTriggerSource(RP_CH_2, RP_GEN_TRIG_SRC_EXT_NE);
+                        rp_GenWaveform(RP_CH_2, RP_WAVEFORM_ARBITRARY);
+                        rp_GenArbWaveform(RP_CH_2, trigwaveform, ADC_BUFFER_SIZE);
+                        rp_GenFreq(RP_CH_2, RP_GEN_SAMPLERATE/ADC_BUFFER_SIZE);
+                        rp_GenAmp(RP_CH_2, 1);
+                        rp_GenMode(RP_CH_2, RP_GEN_MODE_BURST);
+                        rp_GenBurstCount(RP_CH_2, 1);
+                        // Enable output (first sample always high) before `usleep`
+                        // to let ringing dissipate.
+                        rp_GenOutEnable(RP_CH_2);
+                    }
+
+                    // Setup both ADC channels
+                    rp_AcqReset();
+                    rp_AcqSetGain(RP_CH_1, RP_HIGH);
+                    rp_AcqSetGain(RP_CH_2, RP_HIGH);
+                    rp_AcqSetDecimation(RP_DEC_64);
+                    rp_AcqSetTriggerSrc(RP_TRIG_SRC_EXT_NE);
+                    rp_AcqSetTriggerDelay(7992); // trigger at sample 200
+                    rp_AcqSetAveraging(1);
+                    rp_AcqStart();
+
+                    // Wait for "look ahead" buffer to fill up
+                    uint32_t buffertime = ADC_BUFFER_SIZE * 64 / 125; // us
+                    usleep(buffertime);
+
+                    // Fire trigger
+                    rp_GenOutEnable(RP_CH_1);
+                    rp_DpinSetState(RP_DIO0_N, RP_LOW);
+                    // Wait until acquisition trigger fired
+                    rp_acq_trig_state_t state = RP_TRIG_STATE_TRIGGERED;
+                    while (1) {
+                        rp_AcqGetTriggerState(&state);
+                        if(state == RP_TRIG_STATE_TRIGGERED){
+                            break;
+                        }
+                    }
+                    if (ttlCH2) {
+                        // Wait for delayed CH2 trigger
+                        usleep(ttlCH2_delay * 1e6);
+                        // Prevent CH2 trigger from returning to high
+                        rp_GenOutDisable(RP_CH_2);
+                    }
+                    // Wait until ADC buffer is full
+                    usleep(buffertime);
+                    rp_GenOutDisable(RP_CH_1);
+
+                    // Retrieve data and print data to stdout
+                    float samplerate;
+                    rp_AcqGetSamplingRateHz(&samplerate);
+
+                    rp_AcqGetOldestDataV(RP_CH_1, &bufsize, buf);
+                    printf("%f\t%f\t%f\t%f\t%f\t1", samplerate, f, amp, phase, ttlCH2_delay);
+                    for(uint32_t i = 0; i < bufsize; i++) {
+                        printf("\t%f", buf[i]);
+                    }
+                    printf("\n");
+                    
+                    rp_AcqGetOldestDataV(RP_CH_2, &bufsize, buf);
+                    printf("%f\t%f\t%f\t%f\t%f\t2", samplerate, f, amp, phase, ttlCH2_delay);
+                    for(uint32_t i = 0; i < bufsize; i++) {
+                        printf("\t%f", buf[i]);
+                    }
+                    printf("\n");
+
+                    itotal ++;
+                }
+            }
         }
     }
-    if (ttlCH2_delay >= 0) {
-        // Wait for delayed CH2 trigger
-        usleep(ttlCH2_delay * 1e6);
-        // Prevent CH2 trigger from returning to high
-        rp_GenOutDisable(RP_CH_2);
-    }
-    // Wait until ADC buffer is full
-    usleep(buffertime);
 
-    // Retrieve data
-    uint32_t bufsize1 = ADC_BUFFER_SIZE;
-    float *buf1 = (float *)malloc(ADC_BUFFER_SIZE * sizeof(float));
-    rp_AcqGetOldestDataV(RP_CH_1, &bufsize1, buf1);
-
-    uint32_t bufsize2 = ADC_BUFFER_SIZE;
-    float *buf2 = (float *)malloc(ADC_BUFFER_SIZE * sizeof(float));
-    rp_AcqGetOldestDataV(RP_CH_2, &bufsize2, buf2);
-
-    rp_AcqReset();
-    rp_GenOutDisable(RP_CH_1);
-
-    // Print data to stdout
-    for(uint32_t i = 0; i < bufsize1 && i < bufsize2; i++){
-        printf("%f\t%f\n", buf1[i], buf2[i]);
-    }
-
-    free(buf1);
-    free(buf2);
+    free(trigwaveform);
+    free(buf);
     rp_GenReset();
     rp_Release();
     return 0;

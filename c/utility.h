@@ -2,6 +2,8 @@
 #ifndef __UTILITY_H
 #define __UTILITY_H
 
+#include <stdbool.h>
+
 #include "redpitaya/rp.h"
 
 // Undecimated samplerate of Red Pitaya
@@ -13,9 +15,15 @@
 
 /**
  * Log-scaled ticks from `vmin` to `vmax` (inclusive) with i from 0 to
- * `imax` (exclusive).
+ * `iend` (exclusive).
  */
-float log_scale_steps(int i, int imax, float vmin, float vmax);
+float log_scale_steps(int i, int iend, float vmin, float vmax);
+
+/**
+ * Linearly scaled ticks from `vmin` to `vmax` (inclusive) with i from 0 to
+ * `iend` (exclusive).
+ */
+float lin_scale_steps(int i, int iend, float vmin, float vmax);
 
 
 /**
@@ -34,6 +42,7 @@ void acquire_2channels(
         float *buf1, uint32_t *s1,
         float *buf2, uint32_t *s2);
 
+
 /**
  * Write step function to buffer: 1 before delay time, 0 after.
  * First sample guaranteed to be 1.
@@ -41,5 +50,14 @@ void acquire_2channels(
 void ttl_arb_waveform(
     float samplerate, float delay,
     float *buf, uint32_t bufsize);
+
+
+/**
+ * Parse cmd line argument for ranges. A range may be given by a
+ * single number (start and end a the same, npoints is 1), or three
+ * comma separated values like FLOAT,INT,FLOAT giving start, number of
+ * points and the end.
+ */
+bool parse_cmd_line_range(const char *arg, float *start, float *end, int *npoints);
 
 #endif // __UTILITY_H
