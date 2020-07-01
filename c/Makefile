@@ -7,6 +7,8 @@ CFLAGS += -I/opt/redpitaya/include
 LDFLAGS = -L/opt/redpitaya/lib
 LDLIBS = -lm -lpthread -lrp
 
+CHAINFLAG ?=
+
 OBJS=demodulation.o utility.o
 EXECS=avoided_coupling_2channels.x
 
@@ -16,7 +18,7 @@ all: $(EXECS)
 	$(CC) -o $@ $(LDFLAGS) $^ $(LDLIBS)
 
 %.o: %.c
-	$(CC) -o $@ -c $(CFLAGS) $<
+	$(CC) -o $@ -c $(CFLAGS) $(CHAINFLAG) $<
 
 clean:
 	$(RM) *.o
