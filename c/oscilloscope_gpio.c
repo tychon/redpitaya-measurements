@@ -81,7 +81,9 @@ int main(int argc, char **argv){
     }
 
     // Wait for "look ahead" buffer to fill up
-    uint32_t buffertime = ADC_BUFFER_SIZE * 8 / 125; // us
+    float samplerate;
+    rp_AcqGetSamplingRateHz(&samplerate);
+    uint32_t buffertime = (uint32_t)(1e6 * ADC_BUFFER_SIZE / samplerate); // us
     rp_acq_trig_state_t state = RP_TRIG_STATE_TRIGGERED;
     usleep(buffertime);
 
