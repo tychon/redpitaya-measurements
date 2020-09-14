@@ -22,13 +22,12 @@ int main(int argc, char **argv){
 
     // Setup both ADC channels
     rp_AcqReset();
-    rp_AcqSetGain(RP_CH_1, RP_LOW);
-    rp_AcqSetGain(RP_CH_2, RP_LOW);
+    rp_AcqSetGain(RP_CH_1, RP_HIGH);
+    rp_AcqSetGain(RP_CH_2, RP_HIGH);
     rp_AcqSetDecimation(RP_DEC_8);
     rp_AcqSetTriggerSrc(RP_TRIG_SRC_CHA_PE);
     rp_AcqSetTriggerLevel(RP_CH_1, 0.1);
-    //rp_AcqSetTriggerDelay(8192);
-    rp_AcqSetTriggerDelay(7900);
+    rp_AcqSetTriggerDelay(7992); // trigger at sample 200
     rp_AcqSetAveraging(1);
     rp_AcqStart();
 

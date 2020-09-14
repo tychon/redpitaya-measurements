@@ -36,7 +36,7 @@
 
 
 #define RP_GEN_SAMPLERATE 125e6
-#define CHAIN_LEADER_DELAY_US 10000
+#define CHAIN_LEADER_DELAY_US 100000
 
 
 int main(int argc, char **argv){
@@ -63,6 +63,11 @@ int main(int argc, char **argv){
     // Prepare GPIO trigger
     rp_DpinSetDirection(RP_DIO0_P, RP_IN);
     rp_DpinSetDirection(RP_DIO0_N, RP_OUT);
+    // DIO1_P is GND reference for initializer pre-stage
+    // and always set to LOW.
+    rp_DpinSetDirection(RP_DIO1_P, RP_OUT);
+    rp_DpinSetState(RP_DIO0_N, RP_LOW);
+    rp_DpinSetState(RP_DIO1_P, RP_LOW);
 
     uint32_t bufsize = ADC_BUFFER_SIZE;
     float *buf = (float *)malloc(ADC_BUFFER_SIZE * sizeof(float));
@@ -71,8 +76,10 @@ int main(int argc, char **argv){
     for (int ttlCH2_i = 0; ttlCH2_i < ttlCH2_npoints; ttlCH2_i++) {
         float ttlCH2_delay = lin_scale_steps(
             ttlCH2_i, ttlCH2_npoints, ttlCH2_start, ttlCH2_end);
-        fprintf(stderr, "%3.0f%% %.2fus\n",
-                100.0*ttlCH2_i/(ttlCH2_npoints-1), ttlCH2_delay*1e6);
+        if (ttlCH2) {
+            fprintf(stderr, "%3.0f%% %.2fus\n",
+                    100.0*ttlCH2_i/(ttlCH2_npoints-1), ttlCH2_delay*1e6);
+        }
 
         rp_DpinSetState(RP_DIO0_N, RP_HIGH);
 

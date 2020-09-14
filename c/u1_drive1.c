@@ -39,6 +39,7 @@
 
 
 #define RP_GEN_SAMPLERATE 125e6
+#define CHAIN_LEADER_DELAY_US 100000
 
 
 int main(int argc, char **argv) {
@@ -74,8 +75,15 @@ int main(int argc, char **argv) {
     }
 
     // Prepare trigger
+    // DIO0_P is trigger input line / EXT_TRIg
     rp_DpinSetDirection(RP_DIO0_P, RP_IN);
+    // DIO0_N is trigger output line
     rp_DpinSetDirection(RP_DIO0_N, RP_OUT);
+    // DIO1_P is GND reference for initializer pre-stage
+    // and always set to LOW.
+    rp_DpinSetDirection(RP_DIO1_P, RP_OUT);
+    rp_DpinSetState(RP_DIO0_N, RP_LOW);
+    rp_DpinSetState(RP_DIO1_P, RP_LOW);
 
     float *trigwaveform = (float *)malloc(ADC_BUFFER_SIZE * sizeof(float));
 
@@ -141,7 +149,14 @@ int main(int argc, char **argv) {
 
                     // Fire trigger
                     rp_GenOutEnable(RP_CH_1);
+#ifndef FOLLOW
+                    // Leader of a chain of Red Pitayas waits
+                    // so that others can catch up to here and are actually
+                    // also awaiting the next trigger signal.
+                    usleep(CHAIN_LEADER_DELAY_US);
+#endif
                     rp_DpinSetState(RP_DIO0_N, RP_LOW);
+
                     // Wait until acquisition trigger fired
                     rp_acq_trig_state_t state = RP_TRIG_STATE_TRIGGERED;
                     while (1) {

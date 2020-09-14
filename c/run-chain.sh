@@ -8,7 +8,7 @@
 #
 # Note: Since upload and compilation takes considerable time, it is
 # done only when any file in the directory has newer modification time
-# than this script file. This script file is 'touch'ed for on every
+# than this script file. This script file is `touch`ed for on every
 # execution. `init` command touches Makefile to trigger new upload.
 #
 # Red Pitaya has default passwort 'root' for user root.
@@ -60,7 +60,8 @@ fi
 if [[ "$EXECNAME" == "init" ]]; then
     set -x
     for RPIP in $IPs; do
-        sshpass -p 'root' ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@$RPIP" 'cat /opt/redpitaya/fpga/fpga_0.94.bit > /dev/xdevcfg'
+        sshpass -p 'root' ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                "root@$RPIP" 'cat /opt/redpitaya/fpga/fpga_0.94.bit > /dev/xdevcfg'
     done
     touch Makefile
     exit
@@ -101,7 +102,7 @@ for RPIP in $(echo $IPs | tac -s " "); do
     set -x
     sshpass -p 'root' ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
             "root@$RPIP" "LD_LIBRARY_PATH=/opt/redpitaya/lib measurements/$EXECNAME $@" \
-        | gzip -9 > ../output_$IDX.gz &
+        | gzip -9 > ../output_$IDX.gz && echo "fin $RPIP" &
     { set +x; } 2> /dev/null # silently disable xtrace
     IDX=$((IDX-1))
     SLEEP=""
