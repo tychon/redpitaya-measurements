@@ -42,6 +42,21 @@ Just as `run.sh` the initialization (`init`; and also `ping`) is supported:
 
     bash run-chain.sh IPADDR1 IPADDR2 init
 
+# Live Explorer
+The `pyqtgraph` python package is required.  First upload and compile
+the RP script.  In the `c/` folder run
+
+    bash run.sh IPADDR init
+    bash run.sh IPADDR live-explorer.x
+
+Then in `live-explorer/` run
+
+    ssh root@IPADDR 'LD_LIBRARY_PATH=/opt/redpitaya/lib measurements/live-explorer.x' | python fftviewer.py 86e3 66e3
+
+or to avoid having to enter the root password (which is `root`) use
+`sshpass`:
+
+    sshpass -p root ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@169.254.72.1 'LD_LIBRARY_PATH=/opt/redpitaya/lib measurements/live-explorer.x' | python fftviewer.py 86e3 66e3
 
 # Run Python SCPI scripts
 In `python-scpi/` directory run
