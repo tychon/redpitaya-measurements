@@ -37,6 +37,12 @@ plot_waterfall2 = pg.ImageItem()
 p2 = window.addPlot(row=0, col=2)
 p2.addItem(plot_waterfall2)
 
+p1.showGrid(y=True, alpha=1)
+p2.showGrid(y=True, alpha=0.5)
+# https://stackoverflow.com/a/46605797/13355370
+for key in p1.axes: p1.getAxis(key).setZValue(1)
+for key in p2.axes: p2.getAxis(key).setZValue(1)
+
 hist = pg.HistogramLUTItem()
 hist.setImageItem(plot_waterfall2)
 hist.gradient.loadPreset('viridis')
@@ -44,6 +50,8 @@ window.addItem(hist, row=0, col=3)
 
 plot_fft1 = window.addPlot(row=1, col=0)
 plot_fft2 = window.addPlot(row=1, col=2)
+plot_fft1.showGrid(x=True, y=True, alpha=0.5)
+plot_fft2.showGrid(x=True, y=True, alpha=0.5)
 
 plot_signal1 = window.addPlot(row=2, col=0)
 plot_signal2 = window.addPlot(row=2, col=2)
@@ -77,14 +85,14 @@ def process_data(signal1, signal2):
         ffts = np.zeros((NUM_SETS, 2, len(fourierbins)))
 
     # shift data
-    data = np.roll(data, -1, axis=0)
-    ffts = np.roll(ffts, -1, axis=0)
+    data = np.roll(data, 1, axis=0)
+    ffts = np.roll(ffts, 1, axis=0)
 
     # store and transform new dataset
-    data[-1, 0, :] = signal1
-    data[-1, 1, :] = signal2
-    ffts[-1, 0, :] = np.log10(np.absolute(rfft(signal1)[LO_CUT:HI_CUT]))
-    ffts[-1, 1, :] = np.log10(np.absolute(rfft(signal2)[LO_CUT:HI_CUT]))
+    data[0, 0, :] = signal1
+    data[0, 1, :] = signal2
+    ffts[0, 0, :] = np.log10(np.absolute(rfft(signal1)[LO_CUT:HI_CUT]))
+    ffts[0, 1, :] = np.log10(np.absolute(rfft(signal2)[LO_CUT:HI_CUT]))
 
 
 def select_subimage(fs, fft, at, range=RANGE):
@@ -125,21 +133,26 @@ def update():
         process_data(np.array(values1[2:]), np.array(values2[2:]))
 
         subfs, subfft = select_subimage(fourierbins, ffts[:, 0, :], ZOOM[0])
-        print(subfs[0], subfs[-1], 0, int(subfs[1]/1e3), NUM_SETS, int(np.ceil(subfs[-1])/1e3))
         plot_waterfall1.setImage(subfft)
         plot_waterfall1.setRect(QtCore.QRect(
-            0, int(subfs[1]/1e3), NUM_SETS, int(np.ceil(subfs[-1]-subfs[0])/1e3)))
-        plot_fft1.plot(fourierbins/1e3, ffts[-1, 0, :], clear=True)
+            0, int(subfs[1]/1e3), NUM_SETS,
+            int(np.ceil(subfs[-1]-subfs[0])/1e3)))
 
-        plot_waterfall2.setImage(ffts[:, 1, :])
-        plot_waterfall2.setRect(QtCore.QRect(0, 0, NUM_SETS, int(fourierbins[-1]/1e3)))
-        plot_fft2.plot(fourierbins/1e3, ffts[-1, 1, :], clear=True)
+        plot_fft1.plot(fourierbins/1e3, ffts[0, 0, :], clear=True)
+
+        subfs, subfft = select_subimage(fourierbins, ffts[:, 1, :], ZOOM[1])
+        plot_waterfall2.setImage(subfft)
+        plot_waterfall2.setRect(QtCore.QRect(
+            0, int(subfs[1]/1e3), NUM_SETS,
+            int(np.ceil(subfs[-1]-subfs[0])/1e3)))
+
+        plot_fft2.plot(fourierbins/1e3, ffts[0, 1, :], clear=True)
 
         plot_fft1.setRange(yRange=(0, 4.5))
         plot_fft2.setRange(yRange=(0, 4.5))
 
-        plot_signal1.plot(ts[:3000]/1e3, data[-1, 0, :3000], clear=True)
-        plot_signal2.plot(ts[:3000]/1e3, data[-1, 0, :3000], clear=True)
+        plot_signal1.plot(ts[:3000]/1e3, data[0, 0, :3000], clear=True)
+        plot_signal2.plot(ts[:3000]/1e3, data[0, 0, :3000], clear=True)
 
         app.processEvents()
 
