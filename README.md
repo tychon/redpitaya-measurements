@@ -42,6 +42,10 @@ Just as `run.sh` the initialization (`init`; and also `ping`) is supported:
 
     bash run-chain.sh IPADDR1 IPADDR2 init
 
+Outputs are concatenated into `output.gz` to have all datasets as one.
+Red Pitaya input channels are 1 and 2 for first RP in list of IPs, 3
+and 4 for next and so on.
+
 # Live Explorer
 The `pyqtgraph` python package is required.  First upload and compile
 the RP script.  In the `c/` folder run
@@ -49,7 +53,8 @@ the RP script.  In the `c/` folder run
     bash run.sh IPADDR init
     bash run.sh IPADDR live-explorer.x
 
-Then in `live-explorer/` run
+You can interrupt the script after successful compilation.  Then in
+`live-explorer/` run
 
     ssh root@IPADDR 'LD_LIBRARY_PATH=/opt/redpitaya/lib measurements/live-explorer.x' | python fftviewer.py 86e3 66e3
 

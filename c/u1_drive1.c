@@ -12,10 +12,12 @@
  * cmd line argument.  This trigger has an additional latency
  * of 0.2 to 0.3 microseconds.
  *
- * Usage: u1_drive1 FREQ AMPLITUDE PHASE [CH2DELAY]
+ * Usage: u1_drive1 FREQ AMPLITUDE PHASE CH2DELAY [CHNUMOFFSET]
  *
  * You may give ranges for any of the arguments by using
- * START,NPOINTS,END for e.g. FREQ.
+ * START,NPOINTS,END for e.g. FREQ.  CHNUMOFFSET is added to the
+ * channel numbers to allow combining output from multiple Red
+ * Pitayas.
  *
  * Output data format (tab separated) to stdout:
  *
@@ -47,24 +49,21 @@ int main(int argc, char **argv) {
     float f_start, f_end, amp_start, amp_end, phase_start, phase_end,
         ttlCH2_start = 0, ttlCH2_end = 0;
     int f_npoints, amp_npoints, phase_npoints, ttlCH2_npoints = 1;
-    bool ttlCH2 = false;
-    if (argc >= 4) {
+    int chnumoffset = 0;
+    if (argc >= 5) {
         if (!parse_cmd_line_range(argv[1], &f_start, &f_end, &f_npoints)
             || !parse_cmd_line_range(argv[2], &amp_start, &amp_end, &amp_npoints)
-            || !parse_cmd_line_range(argv[3], &phase_start, &phase_end, &phase_npoints)) {
+            || !parse_cmd_line_range(argv[3], &phase_start, &phase_end, &phase_npoints)
+            || !parse_cmd_line_range(argv[4], &ttlCH2_start, &ttlCH2_end, &ttlCH2_npoints)) {
             fprintf(stderr, "Invalid argument.\n");
             exit(1);
         }
     }
-    if (argc == 5) {
-        ttlCH2 = true;
-        if (!parse_cmd_line_range(argv[4], &ttlCH2_start, &ttlCH2_end, &ttlCH2_npoints)) {
-            fprintf(stderr, "Invalid argument.\n");
-            exit(1);
-        }
+    if (argc == 6) {
+        chnumoffset = strtol(argv[5], NULL, 10);
     }
-    if (argc < 4 || argc > 5) {
-        fprintf(stderr, "Invalid arguments.\n");
+    if (argc < 5 || argc > 6) {
+        fprintf(stderr, "Invalid number of arguments.\n");
         exit(1);
     }
 
@@ -119,19 +118,17 @@ int main(int argc, char **argv) {
                     rp_GenBurstCount(RP_CH_1, -1); // -1: continuous
 
                     // Initialize TTL line output
-                    if (ttlCH2 >= 0) {
-                        ttl_arb_waveform(RP_GEN_SAMPLERATE, ttlCH2_delay, trigwaveform, ADC_BUFFER_SIZE);
-                        rp_GenTriggerSource(RP_CH_2, RP_GEN_TRIG_SRC_EXT_NE);
-                        rp_GenWaveform(RP_CH_2, RP_WAVEFORM_ARBITRARY);
-                        rp_GenArbWaveform(RP_CH_2, trigwaveform, ADC_BUFFER_SIZE);
-                        rp_GenFreq(RP_CH_2, RP_GEN_SAMPLERATE/ADC_BUFFER_SIZE);
-                        rp_GenAmp(RP_CH_2, 1);
-                        rp_GenMode(RP_CH_2, RP_GEN_MODE_BURST);
-                        rp_GenBurstCount(RP_CH_2, 1);
-                        // Enable output (first sample always high) before `usleep`
-                        // to let ringing dissipate.
-                        rp_GenOutEnable(RP_CH_2);
-                    }
+                    ttl_arb_waveform(RP_GEN_SAMPLERATE, ttlCH2_delay, trigwaveform, ADC_BUFFER_SIZE);
+                    rp_GenTriggerSource(RP_CH_2, RP_GEN_TRIG_SRC_EXT_NE);
+                    rp_GenWaveform(RP_CH_2, RP_WAVEFORM_ARBITRARY);
+                    rp_GenArbWaveform(RP_CH_2, trigwaveform, ADC_BUFFER_SIZE);
+                    rp_GenFreq(RP_CH_2, RP_GEN_SAMPLERATE/ADC_BUFFER_SIZE);
+                    rp_GenAmp(RP_CH_2, 1);
+                    rp_GenMode(RP_CH_2, RP_GEN_MODE_BURST);
+                    rp_GenBurstCount(RP_CH_2, 1);
+                    // Enable output (first sample always high) before `usleep`
+                    // to let ringing dissipate.
+                    rp_GenOutEnable(RP_CH_2);
 
                     // Setup both ADC channels
                     rp_AcqReset();
@@ -165,12 +162,11 @@ int main(int argc, char **argv) {
                             break;
                         }
                     }
-                    if (ttlCH2) {
-                        // Wait for delayed CH2 trigger
-                        usleep(ttlCH2_delay * 1e6);
-                        // Prevent CH2 trigger from returning to high
-                        rp_GenOutDisable(RP_CH_2);
-                    }
+                    // Wait for delayed CH2 trigger
+                    usleep(ttlCH2_delay * 1e6);
+                    // Prevent CH2 trigger from returning to high
+                    rp_GenOutDisable(RP_CH_2);
+
                     // Wait until ADC buffer is full
                     usleep(buffertime);
                     rp_GenOutDisable(RP_CH_1);
@@ -180,14 +176,16 @@ int main(int argc, char **argv) {
                     rp_AcqGetSamplingRateHz(&samplerate);
 
                     rp_AcqGetOldestDataV(RP_CH_1, &bufsize, buf);
-                    printf("%f\t%f\t%f\t%f\t%f\t1", samplerate, f, amp, phase, ttlCH2_delay);
+                    printf("%f\t%f\t%f\t%f\t%f\t%d", samplerate, f, amp, phase,
+                           ttlCH2_delay, 1+chnumoffset);
                     for(uint32_t i = 0; i < bufsize; i++) {
                         printf("\t%f", buf[i]);
                     }
                     printf("\n");
                     
                     rp_AcqGetOldestDataV(RP_CH_2, &bufsize, buf);
-                    printf("%f\t%f\t%f\t%f\t%f\t2", samplerate, f, amp, phase, ttlCH2_delay);
+                    printf("%f\t%f\t%f\t%f\t%f\t%d", samplerate, f, amp, phase,
+                           ttlCH2_delay, 2+chnumoffset);
                     for(uint32_t i = 0; i < bufsize; i++) {
                         printf("\t%f", buf[i]);
                     }

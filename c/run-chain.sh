@@ -96,12 +96,12 @@ EOF
 fi
 
 # Start programm in reverse order such that triggering device is started last.
-IDX=$N # Count indices for output file names.
-for RPIP in $(echo $IPs | tac -s " "); do
+IDX=$N # Count indices decreasing for output file names.
+for RPIP in $(echo $IPs | tac -s " "); do # Loop in reverse order
     # Run and store output to stdout in compressed file
     set -x
     sshpass -p 'root' ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            "root@$RPIP" "LD_LIBRARY_PATH=/opt/redpitaya/lib measurements/$EXECNAME $@" \
+            "root@$RPIP" "LD_LIBRARY_PATH=/opt/redpitaya/lib measurements/$EXECNAME $@ $((IDX*2-2))" \
         | gzip -9 > ../output_$IDX.gz && echo "fin $RPIP" &
     { set +x; } 2> /dev/null # silently disable xtrace
     IDX=$((IDX-1))
@@ -113,3 +113,7 @@ set -x
 trap 'kill $(jobs -p)' INT
 # Wait for background processes
 wait
+
+# Concatenate outputs from RPs into one file.
+shopt -s extglob
+zcat ../output_+([0-9]).gz | gzip -9 > ../output.gz
