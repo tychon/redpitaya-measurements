@@ -57,8 +57,8 @@ void acquire_2channels(
     // Resets trigger, but also defaults.
     rp_AcqReset();
 
-    rp_AcqSetGain(RP_CH_1, RP_LOW);
-    rp_AcqSetGain(RP_CH_2, RP_LOW);
+    rp_AcqSetGain(RP_CH_1, RP_HIGH);
+    rp_AcqSetGain(RP_CH_2, RP_HIGH);
     rp_AcqSetDecimation(decimation);
     rp_AcqSetTriggerDelay(8192);
     rp_AcqSetAveraging(1);
