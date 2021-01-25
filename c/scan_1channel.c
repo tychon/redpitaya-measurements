@@ -147,6 +147,7 @@ int main(int argc, char **argv) {
 
     free(buf1);
     free(buf2);
+    free(buf12);
     rp_GenReset();
     rp_Release();
     return 0;
