@@ -89,6 +89,13 @@ int main(int argc, char **argv) {
     uint32_t bufsize = ADC_BUFFER_SIZE;
     float *buf = (float *)malloc(ADC_BUFFER_SIZE * sizeof(float));
 
+    /* // print header
+    printf("samplerate\tf\tamplitude\tphase\tch2delay\tch");
+    for(uint32_t i = 0; i < bufsize; i++) {
+        printf("\t%d", i);
+    }
+    printf("\n"); */
+
     int itotal = 0;
     for (int f_i = 0; f_i < f_npoints; f_i++) {
         float f = lin_scale_steps(f_i, f_npoints, f_start, f_end);
