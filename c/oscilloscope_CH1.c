@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "redpitaya/rp.h"
+#include "rp.h"
 
 // Number of samples in ADC buffer, equal to 2**14.
 #define RP_BUFFER_SIZE 16384

@@ -21,7 +21,7 @@
 #include <unistd.h>
 #include <math.h>
 
-#include "redpitaya/rp.h"
+#include "rp.h"
 
 #include "utility.h"
 

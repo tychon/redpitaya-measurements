@@ -34,7 +34,7 @@
 #include <unistd.h>
 #include <math.h>
 
-#include "redpitaya/rp.h"
+#include "rp.h"
 
 #include "demodulation.h"
 #include "utility.h"

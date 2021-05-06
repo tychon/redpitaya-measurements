@@ -4,7 +4,7 @@
 
 #include <stdbool.h>
 
-#include "redpitaya/rp.h"
+#include "rp.h"
 
 // Undecimated samplerate of Red Pitaya
 #define RP_BASE_SAMPLERATE 125e6

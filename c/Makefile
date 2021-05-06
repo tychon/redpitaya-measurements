@@ -3,7 +3,7 @@
 # Use run.sh to upload, compile and execute.
 
 CFLAGS  = -g -std=gnu99 -Wall -Werror
-CFLAGS += -I/opt/redpitaya/include
+CFLAGS += -I/opt/redpitaya/include -I/opt/redpitaya/include/redpitaya
 LDFLAGS = -L/opt/redpitaya/lib
 LDLIBS = -lm -lpthread -lrp
 
