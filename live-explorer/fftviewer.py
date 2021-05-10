@@ -52,15 +52,16 @@ chain.connect(rpips)
 print("Connected.")
 
 # Do a general upper cut-off to limit amount of data in diagrams.
-fbins = rfftfreq(RPBUFFERSIZE, 1/SAMPLERATE)[F_LO_CUT:]
+fbins = rfftfreq(RPBUFFERSIZE-INIT_SAMPLE, 1/SAMPLERATE)[F_LO_CUT:]
 fbins = fbins[fbins <= F_HI_FREQ]
 F_HI_CUT = F_LO_CUT + len(fbins)
-ts = np.arange(RPBUFFERSIZE) / SAMPLERATE
+ts = (np.arange(RPBUFFERSIZE)-INIT_SAMPLE) / SAMPLERATE
 
 ringbuffer = RingBufferChain(
     chain, WATERFALL_LENGTH,
     transform=lambda values: (
-        np.log10(np.absolute(rfft(values * windows.hamming(len(values)))[F_LO_CUT:F_HI_CUT] / len(values)))),
+        np.log10(np.absolute(rfft(values[INIT_SAMPLE:] * windows.hamming(RPBUFFERSIZE-INIT_SAMPLE))[F_LO_CUT:F_HI_CUT] / len(values)))),
+    fill=np.nan,
     nvalues=F_HI_CUT-F_LO_CUT)
 
 print("Starting GUI")

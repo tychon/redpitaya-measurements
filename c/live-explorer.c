@@ -7,7 +7,6 @@
  *
  *     FREQ AMP\n
  *
- * No triggering / initializer.
  * Output data format (tab separated) to stdout:
  *
  *     CH SAMPLES...
@@ -26,9 +25,8 @@
 #include "utility.h"
 
 
-// Delay in us between buffer dumps
-#define DUMP_SPEED 200000
-
+// Delay in us between triggers / buffer dumps
+#define CHAIN_LEADER_DELAY_US 150000
 
 int main(int argc, char **argv) {
     // Initialize IO.
@@ -37,58 +35,75 @@ int main(int argc, char **argv) {
         exit(2);
     }
 
+    // Prepare trigger
+    // DIO0_P is trigger input line / EXT_TRIg
+    rp_DpinSetDirection(RP_DIO0_P, RP_IN);
+    // DIO0_N is trigger output line
+    rp_DpinSetDirection(RP_DIO0_N, RP_OUT);
+    // DIO1_P is GND reference for initializer pre-stage
+    // and always set to LOW.
+    rp_DpinSetDirection(RP_DIO1_P, RP_OUT);
+    rp_DpinSetState(RP_DIO0_N, RP_LOW);
+    rp_DpinSetState(RP_DIO1_P, RP_LOW);
+
+    uint32_t buffertime = ADC_BUFFER_SIZE * 64 / 125; // us
+
     uint32_t bufsize = ADC_BUFFER_SIZE;
     float *buf = (float *)malloc(ADC_BUFFER_SIZE * sizeof(float));
 
-    /*
-    // Initialize driving outputs
-    rp_GenReset();
-    // TODO start immediately
-    rp_GenTriggerSource(RP_CH_1, RP_GEN_TRIG_SRC_EXT_NE);
-    rp_GenWaveform(RP_CH_1, RP_WAVEFORM_SINE);
-    rp_GenFreq(RP_CH_1, f);
-    rp_GenAmp(RP_CH_1, amp);
-    rp_GenPhase(RP_CH_1, phase);
-    rp_GenOffset(RP_CH_1, 0);
-    rp_GenMode(RP_CH_1, RP_GEN_MODE_BURST);
-    rp_GenBurstCount(RP_CH_1, -1); // -1: continuous
-    float outfreq = 0;
-    float outamp = 0;
-    */
-
-    // Setup both ADC channels
-    rp_AcqReset();
-    rp_AcqSetGain(RP_CH_1, RP_HIGH);
-    rp_AcqSetGain(RP_CH_2, RP_HIGH);
-    rp_AcqSetDecimation(RP_DEC_64);
-    rp_AcqSetArmKeep(true); // keep going after trigger
-    rp_AcqSetAveraging(1);
-    rp_AcqStart();
-    rp_AcqSetTriggerSrc(RP_TRIG_SRC_NOW);
-
-    float samplerate;
-    rp_AcqGetSamplingRateHz(&samplerate);
-    uint32_t buffertime = (uint32_t)((float)ADC_BUFFER_SIZE / samplerate * 1e6); // us
-
+    long int idx = 0;
     while (true) {
-        usleep(buffertime);
-        if (DUMP_SPEED > buffertime)
-            usleep(DUMP_SPEED - buffertime);
+        //usleep(buffertime);
+        //if (DUMP_SPEED > buffertime)
+        //    usleep(DUMP_SPEED - buffertime);
 
-        rp_AcqGetOldestDataV(RP_CH_1, &bufsize, buf);
-        printf("1");
-        for(uint32_t i = 0; i < bufsize; i++) {
-            printf("\t%.3f", buf[i]);
+        rp_DpinSetState(RP_DIO0_N, RP_HIGH);
+
+        // Setup both ADC channels
+        rp_AcqReset();
+        rp_AcqSetGain(RP_CH_1, RP_HIGH);
+        rp_AcqSetGain(RP_CH_2, RP_HIGH);
+        rp_AcqSetDecimation(RP_DEC_64);
+        rp_AcqSetTriggerDelay(7992); // trigger at sample 200
+        rp_AcqSetAveraging(1);
+        rp_AcqStart();
+
+        rp_AcqSetTriggerSrc(RP_TRIG_SRC_EXT_NE);
+#ifndef FOLLOW
+        // Leader of a chain of Red Pitayas waits
+        // so that others can catch up to here and are actually
+        // also awaiting the next trigger signal.
+        usleep(CHAIN_LEADER_DELAY_US);
+#endif
+        rp_DpinSetState(RP_DIO0_N, RP_LOW);
+
+        // Wait until acquisition trigger fired
+        rp_acq_trig_state_t state = RP_TRIG_STATE_TRIGGERED;
+        while (1) {
+            rp_AcqGetTriggerState(&state);
+            if(state == RP_TRIG_STATE_TRIGGERED){
+                break;
+            }
         }
-        printf("\n");
+        // Wait until ADC buffer is full
+        usleep(buffertime);
 
         rp_AcqGetOldestDataV(RP_CH_2, &bufsize, buf);
-        printf("2");
+        printf("%ld\t2", idx);
         for(uint32_t i = 0; i < bufsize; i++) {
             printf("\t%.3f", buf[i]);
         }
         printf("\n");
+
+        rp_AcqGetOldestDataV(RP_CH_1, &bufsize, buf);
+        printf("%ld\t1", idx);
+        for(uint32_t i = 0; i < bufsize; i++) {
+            printf("\t%.3f", buf[i]);
+        }
+        printf("\n");
+
         fflush(stdout);
+        idx ++;
     }
 
     free(buf);

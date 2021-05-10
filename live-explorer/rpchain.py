@@ -26,13 +26,13 @@ class RPChain:
         return 2 * len(self.connections)
 
     def connect(self, ips):
-        for ip in ips:
+        for ip in ips[::-1]:
             proc = subprocess.Popen(
                 SSHCMD.format(IP=ip), shell=True,
                 encoding='ascii', universal_newlines=True,
                 bufsize=1,  # line buffered
                 stdout=subprocess.PIPE)
-            self.connections.append((ip, proc))
+            self.connections.insert(0, (ip, proc))
 
     def read(self, timeout=0):
         records = []  # list of (ch, samples)
@@ -43,12 +43,12 @@ class RPChain:
                 idx = fds.index(r)
                 ip, proc = self.connections[idx]
                 values = [float(x) for x in r.readline().split()]
-                if len(values) != 1+16384:
+                if len(values) != 2+16384:
                     print(f"{ip} invalid line ({len(values)} values)")
                 else:
-                    ch = 2*idx + int(values[0])-1
-                    print(f"{ip}-{int(values[0])} {ch} valid")
-                    records.append((ch, values[1:]))
+                    ch = 2*idx + int(values[1])-1
+                    print(f"{ip}-{int(values[1])} {ch} valid, idx={values[0]}")
+                    records.append((ch, values[2:]))
             rlist, _, _ = select.select(fds, [], [], 0)
         return records
 
