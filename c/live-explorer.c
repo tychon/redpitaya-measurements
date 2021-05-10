@@ -10,7 +10,7 @@
  * No triggering / initializer.
  * Output data format (tab separated) to stdout:
  *
- *     SAMPLERATE CH SAMPLES...
+ *     CH SAMPLES...
  *
  * Trigger position at sample 200
  */
@@ -27,7 +27,7 @@
 
 
 // Delay in us between buffer dumps
-#define DUMP_SPEED 100000
+#define DUMP_SPEED 200000
 
 
 int main(int argc, char **argv) {
@@ -76,14 +76,14 @@ int main(int argc, char **argv) {
             usleep(DUMP_SPEED - buffertime);
 
         rp_AcqGetOldestDataV(RP_CH_1, &bufsize, buf);
-        printf("%f\t1", samplerate);
+        printf("1");
         for(uint32_t i = 0; i < bufsize; i++) {
             printf("\t%.3f", buf[i]);
         }
         printf("\n");
 
         rp_AcqGetOldestDataV(RP_CH_2, &bufsize, buf);
-        printf("%f\t2", samplerate);
+        printf("2");
         for(uint32_t i = 0; i < bufsize; i++) {
             printf("\t%.3f", buf[i]);
         }
