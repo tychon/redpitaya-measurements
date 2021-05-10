@@ -15,6 +15,7 @@ from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
 
 from rpchain import RPChain, RingBufferChain, RPBUFFERSIZE
+from gauss_laws import gauss_laws
 
 import signal
 signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -22,11 +23,12 @@ signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 # Width and length of waterfall plot
 FWIDTH = 10e3  # Hz
-WATERFALL_LENGTH = 50
+WATERFALL_LENGTH = 100
 VMIN, VMAX = -4, 0.1
 
 # Limit number of samples in third row
-SAMPLES_LEN = 4000
+SAMPLES_LEN = 5000  # 2**14-210
+INIT_SAMPLE = 200
 
 # Limit Fourier trafo.  These are also the x limits for
 # the spectra in the second row.
@@ -72,6 +74,7 @@ window.setWindowTitle("RP Live Explorer")
 waterfalls = []
 ffts = []
 signals = []
+gausslaws = []
 for i in range(nchannels):
     waterfall = pg.ImageItem()
     plot = window.addPlot(row=0, col=2*i)
@@ -95,11 +98,22 @@ for i in range(nchannels):
         plot.getAxis(key).setZValue(1)
 
     fft = window.addPlot(row=1, col=2*i)
-    fft.showGrid(x=True, y=True, alpha=0.5)
+    fft.showGrid(x=True, y=True, alpha=0.8)
     ffts.append(fft)
 
     signal = window.addPlot(row=2, col=2*i)
     signals.append(signal)
+
+for i in range(nchannels//2):
+    law = window.addPlot(row=3, col=4*i)
+    law.showGrid(y=True, x=True, alpha=0.8)
+    gausslaws.append(law)
+gausslawpens = [
+    pg.mkPen('b'),
+    pg.mkPen('g'),
+    pg.mkPen('y'),
+    pg.mkPen('r')
+]
 
 
 def select_subimage(fbins, spectrum, fcenter, fwidth=FWIDTH):
@@ -126,6 +140,16 @@ def update():
             signals[i].plot(
                 ts[:SAMPLES_LEN]*1e3, ringbuffer.buffer[i, 0, :SAMPLES_LEN],
                 clear=True)
+
+        Gs = gauss_laws(
+            5, [0, 1, 2, 3, 4, 5, 6, 7],
+            ts[:SAMPLES_LEN], ringbuffer.buffer[:, 0, :SAMPLES_LEN], fcenter)
+        for i in range(len(gausslaws)):
+            for j in range(Gs.shape[1]):
+                gausslaws[i].plot(
+                    ts[:SAMPLES_LEN]*1e3, Gs[i, j]*1e9,
+                    pen=gausslawpens[j], clear=(j == 0))
+            gausslaws[i].setRange(xRange=(ts[0]*1e3, ts[:SAMPLES_LEN][-1]*1e3))
 
     app.processEvents()
 
