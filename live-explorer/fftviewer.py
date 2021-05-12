@@ -119,7 +119,7 @@ gausslawpens = [
 def select_subimage(fbins, spectrum, fcenter, fwidth=FWIDTH):
     if fcenter is None or np.isnan(fcenter):
         return fbins, spectrum
-    m = (fcenter-fwidth < fbins) & (fbins < fcenter+fwidth)
+    m = (fcenter-fwidth/2 < fbins) & (fbins < fcenter+fwidth/2)
     return fbins[m], spectrum[:, m]
 
 
@@ -135,7 +135,7 @@ def update():
                 (subfbins[-1]-subfbins[0])/1e3))
 
             ffts[i].plot(fbins/1e3, ringbuffer.transformed[i, 0], clear=True)
-            ffts[i].setRange(xRange=((fc-FWIDTH)/1e3, (fc+FWIDTH)/1e3))
+            ffts[i].setRange(xRange=((fc-FWIDTH/2)/1e3, (fc+FWIDTH/2)/1e3))
 
             signals[i].plot(
                 ts[:SAMPLES_LEN]*1e3, ringbuffer.buffer[i, 0, :SAMPLES_LEN],
