@@ -70,6 +70,7 @@ class RingBufferChain:
     def read(self, timeout=0):
         records = self.rpchain.read(timeout)
         for idx, values in records:
+            values -= np.mean(values)
             ring = self.buffer[idx]
             ring = np.roll(ring, 1, axis=0)
             ring[0, :] = values
