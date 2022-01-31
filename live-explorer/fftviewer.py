@@ -22,12 +22,12 @@ signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
 # Width and length of waterfall plot
-FWIDTH = 10e3  # Hz
+FWIDTH = 12e3  # Hz
 WATERFALL_LENGTH = 100
 VMIN, VMAX = -4, 0.1
 
 # Limit number of samples in third row
-SAMPLES_LEN = 5000  # 2**14-210
+SAMPLES_LEN = (2**14-210)
 INIT_SAMPLE = 200
 
 # Limit Fourier trafo.  These are also the x limits for
@@ -59,10 +59,16 @@ fbins = fbins[fbins <= F_HI_FREQ]
 F_HI_CUT = F_LO_CUT + len(fbins)
 ts = (np.arange(RPBUFFERSIZE)-INIT_SAMPLE) / SAMPLERATE
 
+
+def buffertrafo(values):
+    win = windows.hamming(RPBUFFERSIZE-INIT_SAMPLE)
+    fft = rfft(values[INIT_SAMPLE:] * win) / len(values)
+    return np.log10(np.absolute(fft[F_LO_CUT:F_HI_CUT]))
+
+
 ringbuffer = RingBufferChain(
     chain, WATERFALL_LENGTH,
-    transform=lambda values: (
-        np.log10(np.absolute(rfft(values[INIT_SAMPLE:] * windows.hamming(RPBUFFERSIZE-INIT_SAMPLE))[F_LO_CUT:F_HI_CUT] / len(values)))),
+    transform=buffertrafo,
     fill=np.nan,
     nvalues=F_HI_CUT-F_LO_CUT)
 
@@ -105,7 +111,7 @@ for i in range(nchannels):
     signals.append(signal)
 
 for i in range(nchannels//2):
-    law = window.addPlot(row=3, col=4*i)
+    law = window.addPlot(row=3, col=4*i, colspan=3)
     law.showGrid(y=True, x=True, alpha=0.8)
     gausslaws.append(law)
 gausslawpens = [
@@ -114,6 +120,9 @@ gausslawpens = [
     pg.mkPen('y'),
     pg.mkPen('r')
 ]
+
+pensites = pg.mkPen('#3871c1')
+penlinks = pg.mkPen('#f68712')
 
 
 def select_subimage(fbins, spectrum, fcenter, fwidth=FWIDTH):
@@ -130,19 +139,18 @@ def update():
                 fbins, ringbuffer.transformed[i], fc)
             waterfalls[i].setImage(subspectrum, levels=(VMIN, VMAX))
             waterfalls[i].setRect(QtCore.QRectF(
-                # left, top, width, height
-                0, subfbins[0]/1e3, WATERFALL_LENGTH,
-                (subfbins[-1]-subfbins[0])/1e3))
+                0, -FWIDTH/2/1e3, WATERFALL_LENGTH, FWIDTH/1e3))
 
             ffts[i].plot(fbins/1e3, ringbuffer.transformed[i, 0], clear=True)
             ffts[i].setRange(xRange=((fc-FWIDTH/2)/1e3, (fc+FWIDTH/2)/1e3))
 
             signals[i].plot(
                 ts[:SAMPLES_LEN]*1e3, ringbuffer.buffer[i, 0, :SAMPLES_LEN],
-                clear=True)
+                clear=True, pen=(pensites if i % 2 == 0 else penlinks))
+            signals[i].setRange(yRange=(-1.2, 1.2))
 
         Gs = gauss_laws(
-            5, [0, 1, 2, 3, 4, 5, 6, 7],
+            5, [0, 1, 2, 3, 4, 5, 6, 7, 8],
             ts[:SAMPLES_LEN], ringbuffer.buffer[:, 0, :SAMPLES_LEN], fcenter)
         for i in range(len(gausslaws)):
             for j in range(Gs.shape[1]):
