@@ -26,7 +26,7 @@
 
 
 // Delay in us between triggers / buffer dumps
-#define CHAIN_LEADER_DELAY_US 150000
+#define CHAIN_LEADER_DELAY_US 300000
 
 int main(int argc, char **argv) {
     // Initialize IO.

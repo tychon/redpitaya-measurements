@@ -124,7 +124,7 @@ def select_subimage(fbins, spectrum, fcenter, fwidth=FWIDTH):
 
 
 def update():
-    if ringbuffer.read():
+    if ringbuffer.read(0.01):
         for i, fc in enumerate(fcenter):
             subfbins, subspectrum = select_subimage(
                 fbins, ringbuffer.transformed[i], fc)

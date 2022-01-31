@@ -105,7 +105,8 @@ for RPIP in $(echo $IPs | tac -s " "); do # Loop in reverse order
         | gzip -9 > ../output_$IDX.gz && echo "fin $RPIP" &
     { set +x; } 2> /dev/null # silently disable xtrace
     IDX=$((IDX-1))
-    SLEEP=""
+    #SLEEP=""
+    sleep 0.2s
 done
 
 set -x
